@@ -2,16 +2,12 @@ name: Daily Lunar Bot (ServerChan Version)
 
 on:
   schedule:
-    # 每天北京时间上午 8:00 运行 (UTC 时间 0:00)
-    # 如果你想每小时运行一次，把上面这行注释掉，取消下面这行的注释
-    - cron: '0 0 * * *'
-    # - cron: '0 * * * *' 
-  workflow_dispatch: # 允许手动点击运行测试
+    - cron: '0 1 * * *'  # 每天 UTC 时间 1:00 (北京时间 9:00) 运行
+  workflow_dispatch:     # 允许手动触发
 
 jobs:
-  send-lunar-notification:
+  notify:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -22,78 +18,57 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
-        run: |
-          npm install axios
+        run: npm install axios
 
       - name: Fetch Data and Push Notification
+        env:
+          TX_KEY: ${{ secrets.TX_KEY }}
+          SCT_KEY: ${{ secrets.SCT_KEY }}
         run: |
-          node << 'EOF'
+          node -e "
           const axios = require('axios');
-
-          // ================= 配置区域 (已自动填入) =================
-          const TIANXING_KEY = 'ddb46cc2067829e975734869fdf36969'; 
-          const SERVERCHAN_KEY = 'SCT319191TZCCMQhVq74ajaCWlXYpm9FYE'; // 你的 Key 已填入
-          // =========================================================
-
-          async function main() {
-            try {
-              // 1. 获取今天日期 (北京时间)
-              const now = new Date();
-              // 转换为上海时间字符串 YYYY-MM-DD
-              const dateStr = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Shanghai' })).toISOString().split('T')[0];
-              
-              console.log(`📅 正在查询日期: ${dateStr}`);
-
-              // 2. 调用天行 API 获取农历
-              // 注意：如果 API 地址变更，请根据最新文档调整
-              const lunarRes = await axios.get('https://apis.tianapi.com/lunar/index', {
-                params: { key: TIANXING_KEY, date: dateStr }
-              });
-
-              if (lunarRes.data.code !== 200) {
-                throw new Error(`API 返回错误: ${lunarRes.data.msg || '未知错误'}`);
-              }
-
-              const r = lunarRes.data.result;
-              
-              // 3. 组装消息内容
-              const title = `📅 今日农历：${r.lunar}`;
-              const content = `
-公历：**${dateStr}**
-农历：**${r.lunar}**
-干支：${r.yeargz}年 ${r.monthgz}月 ${r.daygz}日
-生肖：🐉 ${r.animal}
-
-✅ **宜**：${r.suit}
-❌ **忌**：${r.avoid}
-
-_由 GitHub 机器人自动推送，祝你今天好运！_
-              `;
-
-              console.log('📤 正在发送通知...');
-
-              // 4. 调用 ServerChan 发送
-              // channel=9 表示同时尝试发送到微信和邮箱 (取决于你在 ServerChan 后台的绑定)
-              const pushRes = await axios.post(`https://sctapi.ftqq.com/${SERVERCHAN_KEY}.send`, null, {
-                params: {
-                  title: title,
-                  desp: content,
-                  channel: 9 
-                }
-              });
-
-              if (pushRes.data.code === 0) {
-                console.log('✅ 推送成功！请检查微信或邮箱。');
-              } else {
-                throw new Error(`ServerChan 返回错误: ${pushRes.data.message}`);
-              }
-
-            } catch (error) {
-              console.error('❌ 运行失败:', error.message);
-              // 抛出错误让 GitHub Actions 显示红色失败状态，方便排查
-              throw error;
+          
+          // 1. 获取天行数据 (农历)
+          const txKey = process.env.TX_KEY;
+          const today = new Date().toISOString().split('T')[0];
+          
+          axios.get('https://api.tianapi.com/lunar/index.php', {
+            params: { key: txKey, date: today }
+          })
+          .then(txRes => {
+            const data = txRes.data;
+            if (data.code !== 200) {
+              throw new Error('天行API请求失败: ' + data.msg);
             }
-          }
-
-          main();
-          EOF
+            
+            const lunarInfo = data.result;
+            const title = '📅 今日农历简报';
+            const content = 
+              '公历：' + today + '\\n' +
+              '农历：' + lunarInfo.luncalendar + '\\n' +
+              '干支：' + lunarInfo.yeargz + '年 ' + lunarInfo.monthgz + '月 ' + lunarInfo.daygz + '日\\n' +
+              '生肖：' + lunarInfo.shengxiao + '\\n' +
+              '宜：' + lunarInfo.yi.join('、') + '\\n' +
+              '忌：' + lunarInfo.ji.join('、');
+            
+            // 2. 发送 ServerChan 通知
+            const sctKey = process.env.SCT_KEY;
+            return axios.post('https://sctapi.ftqq.com/' + sctKey + '.send', null, {
+              params: {
+                title: title,
+                desp: content
+              }
+            });
+          })
+          .then(sctRes => {
+            if (sctRes.data.code !== 0) {
+              console.log('ServerChan 发送结果:', sctRes.data.message);
+            } else {
+              console.log('推送成功!');
+            }
+          })
+          .catch(err => {
+            console.error('发生错误:', err.message);
+            process.exit(1); // 让 Action 标记为失败
+          });
+          "
