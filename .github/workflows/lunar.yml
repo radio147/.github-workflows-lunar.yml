@@ -44,7 +44,7 @@ jobs:
               
               const r = lunarRes.data.result;
               
-              // 注意：这里完全使用 + 号拼接，没有任何 ${} 符号
+              // 关键修改：这里使用了 + 号拼接，绝对没有 ${} 符号
               const title = '📅 今日农历：' + r.lunar;
               
               const content = 
