@@ -9,40 +9,19 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      - name: Install Axios
+      - name: Install dependencies
         run: npm install axios
 
       - name: Run Script
         env:
           TX_KEY: ${{ secrets.TX_KEY }}
           SCT_KEY: ${{ secrets.SCT_KEY }}
-        run: |
-          node -e "
-          const axios = require('axios');
-          const now = new Date();
-          const y = now.getFullYear();
-          const m = String(now.getMonth()+1).padStart(2,'0');
-          const d = String(now.getDate()).padStart(2,'0');
-          const dateStr = y + '-' + m + '-' + d;
-          const txKey = process.env.TX_KEY;
-          const sctKey = process.env.SCT_KEY;
-
-          axios.get('https://api.tianapi.com/lunar/index.php', { params: { key: txKey, date: dateStr } })
-          .then(res => {
-            if (res.data.code !== 200) throw new Error(res.data.msg);
-            const r = res.data.result;
-            const title = '📅 农历简报 (' + dateStr + ')';
-            const content = '公历：**' + dateStr + '**\\n' + '农历：**' + r.luncalendar + '**\\n' + '干支：' + r.yeargz + '年\\n' + '生肖：' + r.shengxiao + '\\n' + '宜：' + r.yi.join(',') + '\\n' + '忌：' + r.ji.join(',');
-            return axios.post('https://sctapi.ftqq.com/' + sctKey + '.send', null, { params: { title: title, desp: content } });
-          })
-          .then(res => { console.log('Success'); })
-          .catch(err => { console.error('Error:', err.message); process.exit(1); });
-          "
+        run: node script.js
