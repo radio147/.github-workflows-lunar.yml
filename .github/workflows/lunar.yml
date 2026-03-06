@@ -28,7 +28,10 @@ jobs:
           node -e "
           const axios = require('axios');
           const now = new Date();
-          const dateStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+          const y = now.getFullYear();
+          const m = String(now.getMonth()+1).padStart(2,'0');
+          const d = String(now.getDate()).padStart(2,'0');
+          const dateStr = y + '-' + m + '-' + d;
           
           const txKey = process.env.TX_KEY;
           const sctKey = process.env.SCT_KEY;
@@ -38,7 +41,8 @@ jobs:
             if (res.data.code !== 200) throw new Error(res.data.msg);
             const r = res.data.result;
             
-            // 【关键修改】这里完全不用 \${} 写法，改用 + 号拼接，防止 YAML 报错
+            // 【关键】这里完全使用 + 号拼接，绝对没有 \${} 符号
+            // 生成的字符串效果是：公历：**2026-03-06**
             const title = '📅 农历简报 (' + dateStr + ')';
             const content = '公历：**' + dateStr + '**\\n' + 
                             '农历：**' + r.luncalendar + '**\\n' + 
