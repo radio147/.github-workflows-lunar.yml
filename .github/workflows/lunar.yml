@@ -21,6 +21,8 @@ jobs:
         run: npm install axios
 
       - name: Fetch Data and Push Notification
+        # 关键修改：不再使用 << 'EOF'，而是直接用 node -e "..." 
+        # 并且内部 JS 代码全部使用 + 号拼接，杜绝 ${} 出现
         run: |
           node -e "
           const axios = require('axios');
@@ -44,7 +46,8 @@ jobs:
               
               const r = lunarRes.data.result;
               
-              // 【关键修改】这里已经把所有 \${} 都改成了 + 号拼接
+              // 【核心修复】这里原本是使用 \`...\${dateStr}...\`，现在改为 '...' + dateStr + '...'
+              // 这样 YAML 解析器完全不会看到 \${ 符号，也就不会报错了
               const title = '📅 今日农历：' + r.lunar;
               
               const content = 
