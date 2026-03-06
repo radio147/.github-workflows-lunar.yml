@@ -32,7 +32,6 @@ jobs:
           const m = String(now.getMonth()+1).padStart(2,'0');
           const d = String(now.getDate()).padStart(2,'0');
           const dateStr = y + '-' + m + '-' + d;
-          
           const txKey = process.env.TX_KEY;
           const sctKey = process.env.SCT_KEY;
 
@@ -40,26 +39,10 @@ jobs:
           .then(res => {
             if (res.data.code !== 200) throw new Error(res.data.msg);
             const r = res.data.result;
-            
-            // 【关键】这里完全使用 + 号拼接，绝对没有 \${} 符号
-            // 生成的字符串效果是：公历：**2026-03-06**
             const title = '📅 农历简报 (' + dateStr + ')';
-            const content = '公历：**' + dateStr + '**\\n' + 
-                            '农历：**' + r.luncalendar + '**\\n' + 
-                            '干支：' + r.yeargz + '年\\n' + 
-                            '生肖：' + r.shengxiao + '\\n' + 
-                            '宜：' + r.yi.join(',') + '\\n' + 
-                            '忌：' + r.ji.join(',');
-
-            return axios.post('https://sctapi.ftqq.com/' + sctKey + '.send', null, {
-              params: { title: title, desp: content }
-            });
+            const content = '公历：**' + dateStr + '**\\n' + '农历：**' + r.luncalendar + '**\\n' + '干支：' + r.yeargz + '年\\n' + '生肖：' + r.shengxiao + '\\n' + '宜：' + r.yi.join(',') + '\\n' + '忌：' + r.ji.join(',');
+            return axios.post('https://sctapi.ftqq.com/' + sctKey + '.send', null, { params: { title: title, desp: content } });
           })
-          .then(res => {
-            console.log('Success:', res.data.message);
-          })
-          .catch(err => {
-            console.error('Error:', err.message);
-            process.exit(1);
-          });
+          .then(res => { console.log('Success'); })
+          .catch(err => { console.error('Error:', err.message); process.exit(1); });
           "
