@@ -1,9 +1,9 @@
-name: Daily Lunar Bot (ServerChan Version)
+name: Daily Lunar Bot (Every 2 Hours)
 
 on:
   schedule:
-    - cron: '0 1 * * *'  # 每天 UTC 时间 1:00 (北京时间 9:00) 运行
-  workflow_dispatch:     # 允许手动触发
+    - cron: '0 */2 * * *'  # 修改处：每 2 小时运行一次 (UTC 时间)
+  workflow_dispatch:       # 允许手动点击运行
 
 jobs:
   notify:
@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: npm install axios
 
-      - name: Fetch Data and Push Notification
+      - name: Fetch Data and Send Notification
         env:
           TX_KEY: ${{ secrets.TX_KEY }}
           SCT_KEY: ${{ secrets.SCT_KEY }}
@@ -28,31 +28,39 @@ jobs:
           node -e "
           const axios = require('axios');
           
-          // 1. 获取天行数据 (农历)
-          const txKey = process.env.TX_KEY;
-          const today = new Date().toISOString().split('T')[0];
+          // 自动获取当前日期 (YYYY-MM-DD)
+          const now = new Date();
+          const year = now.getFullYear();
+          const month = String(now.getMonth() + 1).padStart(2, '0');
+          const day = String(now.getDate()).padStart(2, '0');
+          const dateStr = year + '-' + month + '-' + day;
           
+          const txKey = process.env.TX_KEY;
+          const sctKey = process.env.SCT_KEY;
+
+          console.log('正在获取 ' + dateStr + ' 的农历数据...');
+
           axios.get('https://api.tianapi.com/lunar/index.php', {
-            params: { key: txKey, date: today }
+            params: { key: txKey, date: dateStr }
           })
           .then(txRes => {
             const data = txRes.data;
             if (data.code !== 200) {
-              throw new Error('天行API请求失败: ' + data.msg);
+              throw new Error('天行API失败: ' + (data.msg || '未知错误'));
             }
             
-            const lunarInfo = data.result;
-            const title = '📅 今日农历简报';
+            const r = data.result;
+            const title = '📅 今日农历简报 (' + dateStr + ')';
             const content = 
-              '公历：' + today + '\\n' +
-              '农历：' + lunarInfo.luncalendar + '\\n' +
-              '干支：' + lunarInfo.yeargz + '年 ' + lunarInfo.monthgz + '月 ' + lunarInfo.daygz + '日\\n' +
-              '生肖：' + lunarInfo.shengxiao + '\\n' +
-              '宜：' + lunarInfo.yi.join('、') + '\\n' +
-              '忌：' + lunarInfo.ji.join('、');
+              '公历：**' + dateStr + '**\\n' +
+              '农历：**' + r.luncalendar + '**\\n' +
+              '干支：' + r.yeargz + '年 ' + r.monthgz + '月 ' + r.daygz + '日\\n' +
+              '生肖：' + r.shengxiao + '\\n' +
+              '宜：' + r.yi.join('、') + '\\n' +
+              '忌：' + r.ji.join('、');
             
-            // 2. 发送 ServerChan 通知
-            const sctKey = process.env.SCT_KEY;
+            console.log('数据获取成功，正在发送通知...');
+
             return axios.post('https://sctapi.ftqq.com/' + sctKey + '.send', null, {
               params: {
                 title: title,
@@ -61,14 +69,14 @@ jobs:
             });
           })
           .then(sctRes => {
-            if (sctRes.data.code !== 0) {
-              console.log('ServerChan 发送结果:', sctRes.data.message);
+            if (sctRes.data.code === 0) {
+              console.log('✅ 推送成功！');
             } else {
-              console.log('推送成功!');
+              console.log('⚠️ 推送返回状态:', sctRes.data.message);
             }
           })
           .catch(err => {
-            console.error('发生错误:', err.message);
-            process.exit(1); // 让 Action 标记为失败
+            console.error('❌ 发生错误:', err.message);
+            process.exit(1);
           });
           "
