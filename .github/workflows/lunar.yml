@@ -44,7 +44,7 @@ jobs:
               
               const r = lunarRes.data.result;
               
-              // 【关键修改】全部改用 + 号拼接，彻底移除 \${} 和反引号
+              // 【关键修改】这里已经把所有 \${} 都改成了 + 号拼接
               const title = '📅 今日农历：' + r.lunar;
               
               const content = 
