@@ -1,25 +1,27 @@
-name: Daily Lunar Bot (ServerChan Version)
+name: Lunar Calendar Notification
 
 on:
   schedule:
+    # 每天早上 8 点运行（北京时间）
     - cron: '0 0 * * *'
-  workflow_dispatch:
+  workflow_dispatch:  # 允许手动触发
 
 jobs:
-  send-lunar-notification:
+  send-notification:
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
+      
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
-
+      
       - name: Install dependencies
         run: npm install axios
-
+      
       - name: Fetch Data and Push Notification
         run: |
           node -e "
@@ -44,7 +46,6 @@ jobs:
               
               const r = lunarRes.data.result;
               
-              // 关键修改：这里使用了 + 号拼接，绝对没有 ${} 符号
               const title = '📅 今日农历：' + r.lunar;
               
               const content = 
